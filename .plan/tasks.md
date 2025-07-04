@@ -1,0 +1,3 @@
+- [ ] **Error Handling & Refinements**:
+    - [ ] Add error handling for API connection issues or invalid credentials.
+    - [ ] Add docstrings and comments to the code.
