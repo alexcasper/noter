@@ -3,6 +3,8 @@ import sys
 import argparse
 from datetime import datetime
 from config import SIMPLENOTE_USER, SIMPLENOTE_PASS
+from firestore import get_firestore_db, backup_notes_to_firestore
+
 
 def get_simplenote_instance():
     """
@@ -40,7 +42,7 @@ def get_note_title(content):
     """
     if not content:
         return "[No Title]"
-    return content.split('\n', 1)[0].strip() or "[No Title]"
+    return content.split('', 1)[0].strip() or "[No Title]"
 
 def list_notes(sn):
     """
@@ -57,7 +59,7 @@ def list_notes(sn):
 
     sorted_notes = sorted(note_list, key=lambda x: float(x.get('modifydate', 0)), reverse=True)
 
-    print(f"Displaying {len(sorted_notes)} notes (newest first):\n")
+    print(f"Displaying {len(sorted_notes)} notes (newest first):")
     for note_meta in sorted_notes:
         # get_note_list doesn't include content, so we must fetch each note individually.
         note_full, status = sn.get_note(note_meta['key'])
@@ -68,10 +70,34 @@ def list_notes(sn):
         else:
             print(f"  - Could not fetch content for note key {note_meta['key']}", file=sys.stderr)
 
+def get_all_notes(sn):
+    """
+    Retrieves all notes with their full content from Simplenote.
+
+    Args:
+        sn: An authenticated simplenote.Simplenote instance.
+
+    Returns:
+        A list of note dictionaries, or an empty list on failure.
+    """
+    note_list, status = sn.get_note_list()
+    if status != 0:
+        print(f"Error fetching note list. Status: {status}", file=sys.stderr)
+        return []
+
+    all_notes = []
+    for note_meta in note_list:
+        note_full, status = sn.get_note(note_meta['key'])
+        if status == 0:
+            all_notes.append(note_full)
+        else:
+            print(f"  - Could not fetch content for note key {note_meta['key']}", file=sys.stderr)
+    return all_notes
+
 def main():
     """Main function to parse arguments and run commands."""
     parser = argparse.ArgumentParser(description="A simple CLI tool to interact with Simplenote.")
-    parser.add_argument('command', nargs='?', default='list', choices=['list'], help="The command to execute (default: list).")
+    parser.add_argument('command', nargs='?', default='list', choices=['list', 'backup'], help="The command to execute (default: list).")
     args = parser.parse_args()
 
     sn = get_simplenote_instance()
@@ -80,6 +106,22 @@ def main():
 
     if args.command == 'list':
         list_notes(sn)
+    elif args.command == 'backup':
+        print("Backing up all notes to Firestore...")
+        try:
+                db = get_firestore_db()
+                if db:
+                    notes = get_all_notes(sn)
+                    if notes:
+                        backup_notes_to_firestore(db, notes)
+                    else:
+                        print("No notes to backup.", file=sys.stderr)
+                else:
+                    print("Firestore database client is not available.", file=sys.stderr)
+        except:
+            print("An error occurred while backing up to Firestore.", file=sys.stderr)
+    else:
+        print(f"Unknown command: {args.command}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

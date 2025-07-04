@@ -1,3 +1,9 @@
-dotenv==0.9.9
-python-dotenv==1.1.1
+langchain
+langgraph
+langchain_openai
+langchain-google-genai
+langchain-mistralai
+langchain-perplexity	
+python-dotenv>=1.0.0
 simplenote==2.1.4
+dotenv==0.9.9
